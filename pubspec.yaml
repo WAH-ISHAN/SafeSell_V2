@@ -1,0 +1,90 @@
+name: safeshell
+description: Secure Vault App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core
+  cupertino_icons: ^1.0.2
+  go_router: ^12.0.0
+  provider: ^6.0.5
+  get_it: ^7.6.0
+  url_launcher: ^6.1.11
+
+  # UI / Assets
+  google_fonts: ^6.1.0
+  flutter_animate: ^4.2.0
+  glassmorphism_ui: ^0.3.0
+  lottie: ^2.7.0
+
+  # Persistence / DB
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.0
+
+  # Auth / Firebase
+    # Auth / Firebase
+  firebase_core: ^3.0.0
+  firebase_auth: ^5.0.0
+  google_sign_in: ^6.2.1
+  local_auth: ^2.1.6
+  firebase_app_check: ^0.3.2+10
+
+  # Crypto / Security
+  crypto: ^3.0.3
+  cryptography: ^2.7.0
+  encrypt: ^5.0.1
+  pointycastle: ^3.7.3
+  uuid: ^4.2.1
+  share_plus: ^10.1.3
+
+  # Files / Media
+  file_picker: ^8.1.2
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  mime: ^1.0.4
+  open_file: ^3.3.2
+  archive: ^3.4.0
+  intl: ^0.18.1
+
+  # Device
+  device_info_plus: ^10.0.0
+  permission_handler: ^11.3.1
+
+  # Payments / Ads
+  in_app_purchase: ^3.1.10
+  in_app_purchase_android: ^0.3.0+15
+  google_mobile_ads: ^5.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.6
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+    - assets/images/
+    - assets/animations/
+    - assets/icon/
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#0D0D1A"
+  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21

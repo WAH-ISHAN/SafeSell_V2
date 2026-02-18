@@ -1,0 +1,21 @@
+﻿Analyzing SafeSell...                                           
+
+   info - Statements in an if should be enclosed in a block - lib\models\vault_file.dart:85:44 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\backup_screen.dart:60:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\lock_screen.dart:62:9 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\lock_screen.dart:117:7 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\lock_screen.dart:119:7 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\lock_screen.dart:159:27 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\login_screen.dart:44:7 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\login_screen.dart:66:7 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\settings_screen.dart:41:7 - curly_braces_in_flow_control_structures
+warning - The value of the local variable 'newKeyBase64' isn't used - lib\ui\screens\settings_screen.dart:189:13 - unused_local_variable
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\splash_screen.dart:54:7 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\splash_screen.dart:68:7 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\splash_screen.dart:74:7 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\splash_screen.dart:76:7 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\vault_screen.dart:463:15 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\vault_screen.dart:465:15 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\vault_screen.dart:479:19 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\vault_screen.dart:481:19 - curly_braces_in_flow_control_structures
+
