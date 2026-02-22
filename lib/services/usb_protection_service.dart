@@ -18,6 +18,9 @@ class UsbProtectionService {
 
   StreamSubscription? _subscription;
 
+  /// Observable state of USB connection
+  final ValueNotifier<bool> isUsbConnected = ValueNotifier<bool>(false);
+
   /// Callback to navigate to lock screen (set by the widget that owns navigation)
   VoidCallback? onLockTriggered;
 
@@ -41,6 +44,7 @@ class UsbProtectionService {
 
     if (type == 'usb_attached') {
       debugPrint('[SafeShell] USB device attached — locking vault');
+      isUsbConnected.value = true;
       _keyManager.lock();
 
       await _auditLog.log(
@@ -52,6 +56,7 @@ class UsbProtectionService {
       onLockTriggered?.call();
     } else if (type == 'usb_detached') {
       debugPrint('[SafeShell] USB device detached');
+      isUsbConnected.value = false;
       await _auditLog.log(
         type: 'usb_protection',
         details: {'event': 'usb_detached'},

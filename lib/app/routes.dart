@@ -14,11 +14,13 @@ import '../ui/screens/dashboard_screen.dart';
 import '../ui/screens/vault_screen.dart';
 import '../ui/screens/profile_screen.dart';
 import '../ui/screens/settings_screen.dart';
+import '../ui/screens/usb_import_screen.dart';
 import '../ui/screens/security_logs_screen.dart';
 import '../ui/screens/backup_screen.dart';
 import '../ui/screens/lock_screen.dart';
 import '../ui/screens/subscription_screen.dart';
 import '../ui/screens/viewer_screen.dart';
+import '../ui/screens/payment_success_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -76,6 +78,14 @@ GoRouter createRouter({required KeyManager keyManager}) {
             builder: (_, __) => const SecurityLogsScreen(),
           ),
           GoRoute(path: '/backup', builder: (_, __) => const BackupScreen()),
+          GoRoute(
+            path: '/usb-import',
+            builder: (context, state) => const UsbImportScreen(),
+          ),
+          GoRoute(
+            path: '/payment-success',
+            builder: (context, state) => const PaymentSuccessScreen(),
+          ),
         ],
       ),
     ],

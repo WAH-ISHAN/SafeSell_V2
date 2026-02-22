@@ -23,6 +23,7 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL_MEDIA = "com.safeshell/media_store"
     private val CHANNEL_USB = "com.safeshell/usb_events"
     private val CHANNEL_INTENT = "com.safeshell/intent"
+    private val CHANNEL_STEALTH = "com.safeshell/stealth"
 
     private var usbEventSink: EventChannel.EventSink? = null
     private var usbReceiver: BroadcastReceiver? = null
@@ -120,6 +121,22 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        // Stealth Mode channel — switching launcher icons
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_STEALTH).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setLauncherIcon" -> {
+                    val aliasName = call.argument<String>("alias")
+                    if (aliasName != null) {
+                        setLauncherIcon(aliasName)
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ALIAS", "Alias name cannot be null", null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         // USB Events EventChannel
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_USB).setStreamHandler(
             object : EventChannel.StreamHandler {
@@ -205,6 +222,33 @@ class MainActivity : FlutterActivity() {
             }
         } catch (e: Exception) {
             result.error("ERROR", e.message, null)
+        }
+    }
+
+    private fun setLauncherIcon(aliasName: String) {
+        val aliases = listOf(
+            ".MainActivityAlias",
+            ".AliasCalculator",
+            ".AliasClock",
+            ".AliasNotepad",
+            ".AliasGallery"
+        )
+
+        val pm = packageManager
+        val packageName = packageName
+
+        for (alias in aliases) {
+            val componentName = android.content.ComponentName(packageName, "$packageName$alias")
+            val newState = if (alias == aliasName) {
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
+            pm.setComponentEnabledSetting(
+                componentName,
+                newState,
+                android.content.pm.PackageManager.DONT_KILL_APP
+            )
         }
     }
 

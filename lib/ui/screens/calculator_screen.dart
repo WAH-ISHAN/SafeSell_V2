@@ -117,7 +117,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         borderSide: BorderSide(color: Color(0xFFFF9500)),
                       ),
                       errorText: errorText,
-                      errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                      errorStyle: const TextStyle(
+                          color: Colors.redAccent, fontSize: 12),
                     ),
                   ),
                 ],
@@ -125,7 +126,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white54)),
                 ),
                 TextButton(
                   onPressed: _verifying
@@ -142,7 +144,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                             if (unlocked) {
                               await _auditLog.log(
                                 type: 'stealth_unlock',
-                                details: {'action': 'vault_opened_from_calculator'},
+                                details: {
+                                  'action': 'vault_opened_from_calculator'
+                                },
                               );
                               if (ctx.mounted) Navigator.pop(ctx, true);
                               if (mounted) context.go('/dashboard');
@@ -155,7 +159,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           });
                           pinController.clear();
                         },
-                  child: const Text('Unlock', style: TextStyle(color: Color(0xFFFF9500))),
+                  child: const Text('Unlock',
+                      style: TextStyle(color: Color(0xFFFF9500))),
                 ),
               ],
             );
@@ -254,6 +259,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(40),
           onTap: () => _onButton(label),
+          onLongPress: label == '='
+              ? () async {
+                  // Secret gesture: long press '=' to open vault
+                  await _auditLog.log(
+                    type: 'stealth_gesture',
+                    details: {'action': 'long_press_equals'},
+                  );
+                  if (mounted) {
+                    await _askVaultPin();
+                  }
+                }
+              : null,
           child: Center(
             child: Text(
               label,

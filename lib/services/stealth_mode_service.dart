@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Manages stealth mode PIN storage and verification.
-/// Stealth PIN is separate from App Lock PIN, allowing different codes.
+/// Manages stealth mode PIN storage and verification, and launcher icon switching.
 class StealthModeService {
+  static const _channel = MethodChannel('com.safeshell/stealth');
   static const _pinHashKey = 'stealth_pin_hash';
   static const _pinSaltKey = 'stealth_pin_salt';
   static const _iterations = 100000;
@@ -14,8 +15,7 @@ class StealthModeService {
   final FlutterSecureStorage _secureStorage;
 
   StealthModeService({FlutterSecureStorage? secureStorage})
-      : _secureStorage =
-            secureStorage ??
+      : _secureStorage = secureStorage ??
             const FlutterSecureStorage(
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
             );
@@ -69,6 +69,21 @@ class StealthModeService {
   Uint8List _generateSalt() {
     final random = Random.secure();
     return Uint8List.fromList(List.generate(32, (_) => random.nextInt(256)));
+  }
+
+  /// Update launcher icon (stealth mode)
+  /// [aliasName] should be one of:
+  /// - .MainActivityAlias (default)
+  /// - .AliasCalculator
+  /// - .AliasClock
+  /// - .AliasNotepad
+  /// - .AliasGallery
+  Future<void> setLauncherIcon(String aliasName) async {
+    try {
+      await _channel.invokeMethod('setLauncherIcon', {'alias': aliasName});
+    } on PlatformException catch (e) {
+      print('Failed to set launcher icon: $e');
+    }
   }
 
   /// PBKDF2-like hash: iterate SHA-256(salt + pin) N times

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/billing_service.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/premium_ui.dart';
@@ -18,6 +19,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   void initState() {
     super.initState();
     _billing.init();
+    _billing.addListener(_onBillingUpdate);
+  }
+
+  @override
+  void dispose() {
+    _billing.removeListener(_onBillingUpdate);
+    super.dispose();
+  }
+
+  void _onBillingUpdate() {
+    if (_billing.isPro && mounted) {
+      // Successful purchase detected
+      context.pushReplacement('/payment-success');
+    }
   }
 
   @override

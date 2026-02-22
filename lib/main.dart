@@ -21,6 +21,8 @@ import 'models/vault_file.dart';
 import 'models/registered_device.dart';
 
 import 'security/key_manager.dart';
+import 'security/screen_protection_service.dart';
+import 'security/auto_lock_service.dart';
 import 'services/ads_service.dart';
 import 'services/connectivity_service.dart';
 
@@ -110,14 +112,21 @@ class SafeShellApp extends StatefulWidget {
   State<SafeShellApp> createState() => _SafeShellAppState();
 }
 
-class _SafeShellAppState extends State<SafeShellApp> {
+class _SafeShellAppState extends State<SafeShellApp>
+    with WidgetsBindingObserver {
   late final GoRouter _router;
   final _keyManager = KeyManager();
+  final _screenProtection = ScreenProtectionService();
+  final _autoLock = AutoLockService();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _router = createRouter(keyManager: _keyManager);
+
+    // Initialize screen protection from settings
+    _syncScreenProtection();
 
     // Defer Ads init to avoid blocking main thread / GPU surface issues
     if (AppConfig.adsEnabled) {
@@ -130,6 +139,31 @@ class _SafeShellAppState extends State<SafeShellApp> {
         });
       });
     }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Handle auto-lock
+    _autoLock.handleLifecycleChange(state);
+
+    // Refresh screen protection on resume (Android sometimes resets it)
+    if (state == AppLifecycleState.resumed) {
+      _syncScreenProtection();
+    }
+  }
+
+  Future<void> _syncScreenProtection() async {
+    try {
+      final box = Hive.box<AppSettings>('app_settings_typed');
+      final settings = box.get('settings') ?? AppSettings();
+      await _screenProtection.setEnabled(settings.screenProtectionEnabled);
+    } catch (_) {}
   }
 
   @override

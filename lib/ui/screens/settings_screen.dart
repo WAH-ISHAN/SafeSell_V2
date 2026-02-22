@@ -147,22 +147,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (value) {
       // Check if stealth PIN is already set
       final hasPinSet = await _stealthService.hasStealthPinSet();
-      
+
       if (!hasPinSet) {
         // First time enabling - need to set stealth PIN
         final pin = await _showStealthPinSetup();
         if (pin == null) return; // User cancelled
-        
+
         await _stealthService.setStealthPin(pin);
       }
-      
+
       _settings.stealthEnabled = true;
       await _saveSettings();
       await _auditLog.log(
         type: 'stealth_toggle',
         details: {'enabled': true, 'firstTimeSetup': !hasPinSet},
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -207,9 +207,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       );
-      
+
       if (confirm != true) return;
-      
+
       _settings.stealthEnabled = false;
       await _saveSettings();
       // Note: We keep the stealth PIN in case user re-enables
@@ -291,7 +291,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       obscureText: true,
                       style: const TextStyle(color: SafeShellTheme.textPrimary),
                       decoration: InputDecoration(
-                        hintText: confirming ? 'Re-enter PIN' : 'Enter PIN (e.g., 1234=)',
+                        hintText: confirming
+                            ? 'Re-enter PIN'
+                            : 'Enter PIN (e.g., 1234=)',
                         hintStyle: const TextStyle(
                           color: SafeShellTheme.textMuted,
                           fontSize: 13,
@@ -311,7 +313,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           });
                           return;
                         }
-                        
+
                         if (!confirming) {
                           firstPin = value;
                           setDialogState(() {
@@ -569,11 +571,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
 
+                // New Security Options
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      _dropdownRow(
+                        label: 'Auto-Lock Timeout',
+                        subtitle: 'Lock vault after app is backgrounded',
+                        icon: Icons.timer,
+                        value: _settings.lockAfterSeconds,
+                        items: {
+                          0: 'Immediate',
+                          10: '10 seconds',
+                          30: '30 seconds',
+                          60: '1 minute',
+                          300: '5 minutes',
+                        },
+                        onChanged: (v) async {
+                          if (v != null) {
+                            _settings.lockAfterSeconds = v;
+                            await _saveSettings();
+                            setState(() {});
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _dropdownRow(
+                        label: 'Clear Clipboard',
+                        subtitle: 'Auto-clear copied text after delay',
+                        icon: Icons.content_paste_off,
+                        value: _settings.clipboardClearSeconds,
+                        items: {
+                          0: 'Disabled',
+                          15: '15 seconds',
+                          30: '30 seconds',
+                          60: '1 minute',
+                        },
+                        onChanged: (v) async {
+                          if (v != null) {
+                            _settings.clipboardClearSeconds = v;
+                            await _saveSettings();
+                            setState(() {});
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
                 const SizedBox(height: 16),
                 const _SectionTitle('Import Mode'),
                 GlassCard(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -614,8 +666,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.shield, color: SafeShellTheme.accent,
-                              size: 22),
+                          Icon(Icons.shield,
+                              color: SafeShellTheme.accent, size: 22),
                           SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -642,9 +694,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'To use SafeShell as your default viewer, open a photo '  
-                        'or video from your gallery, tap the share/open-with icon, '  
-                        'and choose SafeShell. You can pin it as default from '  
+                        'To use SafeShell as your default viewer, open a photo '
+                        'or video from your gallery, tap the share/open-with icon, '
+                        'and choose SafeShell. You can pin it as default from '
                         'Android Settings → Apps → SafeShell → Open by default.',
                         style: TextStyle(
                           color: SafeShellTheme.textMuted,
@@ -1007,6 +1059,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: onChanged,
             activeThumbColor: SafeShellTheme.accent,
             inactiveTrackColor: SafeShellTheme.glassBorder,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dropdownRow<T>({
+    required String label,
+    required String subtitle,
+    required IconData icon,
+    required T value,
+    required Map<T, String> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return GlassCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: SafeShellTheme.accent, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: SafeShellTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: SafeShellTheme.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DropdownButton<T>(
+            value: value,
+            dropdownColor: SafeShellTheme.bgCard,
+            underline: const SizedBox.shrink(),
+            icon: const Icon(Icons.keyboard_arrow_down,
+                color: SafeShellTheme.accent),
+            style: const TextStyle(
+                color: SafeShellTheme.accent,
+                fontSize: 13,
+                fontWeight: FontWeight.bold),
+            items: items.entries.map((e) {
+              return DropdownMenuItem<T>(
+                value: e.key,
+                child: Text(e.value),
+              );
+            }).toList(),
+            onChanged: onChanged,
           ),
         ],
       ),

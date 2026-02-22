@@ -52,13 +52,31 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
     }
 
     return Scaffold(
-      body: widget.child,
+      body: Stack(
+        children: [
+          widget.child,
+          // Transparent Top Bar Detector for "Quick Exit"
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).padding.top + 60,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onDoubleTap: () {
+                debugPrint(
+                    '[QuickExit] Double tap top bar — returning to calculator');
+                context.go('/calculator');
+              },
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: SafeShellTheme.bgDark.o(0.9),
           border: const Border(
-            top: BorderSide(
-                color: SafeShellTheme.glassBorder, width: 0.5),
+            top: BorderSide(color: SafeShellTheme.glassBorder, width: 0.5),
           ),
         ),
         child: SafeArea(
@@ -96,18 +114,16 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
           children: [
             Icon(
               icon,
-              color: selected
-                  ? SafeShellTheme.accent
-                  : SafeShellTheme.textMuted,
+              color:
+                  selected ? SafeShellTheme.accent : SafeShellTheme.textMuted,
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: selected
-                    ? SafeShellTheme.accent
-                    : SafeShellTheme.textMuted,
+                color:
+                    selected ? SafeShellTheme.accent : SafeShellTheme.textMuted,
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),

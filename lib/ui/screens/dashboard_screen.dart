@@ -12,6 +12,7 @@ import 'vault_screen.dart';
 import '../widgets/section_card.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/import_progress_sheet.dart';
+import '../widgets/usb_shield_banner.dart';
 
 import '../../services/vault_service.dart';
 import '../../services/billing_service.dart';
@@ -123,33 +124,31 @@ class _DashboardScreenState extends State<DashboardScreen>
         // Show confirmation dialog before importing
         final bool? shouldDelete = await showDialog<bool>(
           context: context,
-          builder:
-              (context) => AlertDialog(
-                backgroundColor: const Color(0xFF141A24),
-                title: const Text(
-                  "Import Options",
-                  style: TextStyle(color: Colors.white),
-                ),
-                content: const Text(
-                  "Do you want to delete the original files from your gallery after importing them to the secure vault?",
-                  style: TextStyle(color: Colors.white70),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed:
-                        () => Navigator.pop(context, false), // Keep original
-                    child: const Text("Keep Original"),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
-                    ),
-                    onPressed:
-                        () => Navigator.pop(context, true), // Delete original
-                    child: const Text("Delete Original"),
-                  ),
-                ],
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF141A24),
+            title: const Text(
+              "Import Options",
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              "Do you want to delete the original files from your gallery after importing them to the secure vault?",
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false), // Keep original
+                child: const Text("Keep Original"),
               ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                ),
+                onPressed: () =>
+                    Navigator.pop(context, true), // Delete original
+                child: const Text("Delete Original"),
+              ),
+            ],
+          ),
         );
 
         if (shouldDelete == null || !mounted) return;
@@ -159,12 +158,11 @@ class _DashboardScreenState extends State<DashboardScreen>
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder:
-              (context) => ImportProgressSheet(
-                files: result.files,
-                deleteOriginals: shouldDelete,
-                cryptoStore: _vaultService,
-              ),
+          builder: (context) => ImportProgressSheet(
+            files: result.files,
+            deleteOriginals: shouldDelete,
+            cryptoStore: _vaultService,
+          ),
         );
 
         // Refresh stats after import
@@ -197,11 +195,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.person_rounded),
-            onPressed:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                ),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
           ),
         ],
       ),
@@ -244,6 +241,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
           children: [
+            const UsbShieldBanner(),
+            const SizedBox(height: 8),
             _HeaderRow(greeting: _greeting, risk: _plan.risk),
             const SizedBox(height: 16),
             _buildUsageCard(context),
@@ -477,8 +476,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const VaultScreen(initialCategory: 'photos'),
+                                  builder: (_) => const VaultScreen(
+                                      initialCategory: 'photos'),
                                 ),
                               );
                             },
@@ -497,8 +496,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const VaultScreen(initialCategory: 'videos'),
+                                  builder: (_) => const VaultScreen(
+                                      initialCategory: 'videos'),
                                 ),
                               );
                             },
@@ -509,7 +508,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               color: const Color(0xFF8B5CF6),
                             ),
                           ),
-                        if ((_vaultStats!.photos > 0 || _vaultStats!.videos > 0) &&
+                        if ((_vaultStats!.photos > 0 ||
+                                _vaultStats!.videos > 0) &&
                             _vaultStats!.docs > 0)
                           const SizedBox(width: 10),
                         if (_vaultStats!.docs > 0)
@@ -518,8 +518,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const VaultScreen(initialCategory: 'docs'),
+                                  builder: (_) => const VaultScreen(
+                                      initialCategory: 'docs'),
                                 ),
                               );
                             },
@@ -580,8 +580,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const VaultScreen(initialCategory: 'other'),
+                                  builder: (_) => const VaultScreen(
+                                      initialCategory: 'other'),
                                 ),
                               );
                             },
@@ -613,41 +613,37 @@ class _DashboardScreenState extends State<DashboardScreen>
           title: 'Security Logs',
           subtitle: 'View activity',
           icon: Icons.monitor_heart_rounded,
-          onTap:
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SecurityLogsScreen()),
-              ),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SecurityLogsScreen()),
+          ),
         ),
         SectionCard(
           title: 'Device Manager',
           subtitle: '${_plan.devices} devices',
           icon: Icons.devices_rounded,
-          onTap:
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DeviceManagerScreen()),
-              ),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DeviceManagerScreen()),
+          ),
         ),
         SectionCard(
           title: 'Backup',
           subtitle: 'Auto enabled',
           icon: Icons.cloud_upload_rounded,
-          onTap:
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const BackupScreen()),
-              ),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const BackupScreen()),
+          ),
         ),
         SectionCard(
           title: 'Support',
           subtitle: 'Get help',
           icon: Icons.support_agent_rounded,
-          onTap:
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SupportScreen()),
-              ),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SupportScreen()),
+          ),
         ),
       ],
     );
@@ -684,13 +680,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SubscriptionScreen(),
-                    ),
-                  ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SubscriptionScreen(),
+                ),
+              ),
               child: const Text("Learn more →"),
             ),
           ),

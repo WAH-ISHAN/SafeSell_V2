@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -23,6 +24,8 @@ class _LockScreenState extends State<LockScreen> {
   Duration _cooldown = Duration.zero;
   bool _hasBiometric = false;
 
+  Timer? _cooldownTimer;
+
   @override
   void initState() {
     super.initState();
@@ -34,17 +37,46 @@ class _LockScreenState extends State<LockScreen> {
     _init();
   }
 
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     final biometric = await BiometricService().isAvailable();
-    final cooldown = await _lockUsecase.getCooldownRemaining();
+    await _checkCooldown();
     if (mounted) {
       setState(() {
         _hasBiometric = biometric;
-        _cooldown = cooldown;
       });
     }
     if (_hasBiometric && _cooldown == Duration.zero) {
       _unlockBiometric();
+    }
+  }
+
+  Future<void> _checkCooldown() async {
+    final cooldown = await _lockUsecase.getCooldownRemaining();
+    if (mounted) {
+      setState(() => _cooldown = cooldown);
+    }
+
+    if (_cooldown > Duration.zero) {
+      _cooldownTimer?.cancel();
+      _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          _cooldown = _cooldown - const Duration(seconds: 1);
+          if (_cooldown <= Duration.zero) {
+            _cooldown = Duration.zero;
+            timer.cancel();
+          }
+        });
+      });
     }
   }
 
@@ -158,11 +190,6 @@ class _LockScreenState extends State<LockScreen> {
     }
   }
 
-  Future<void> _checkCooldown() async {
-    final cooldown = await _lockUsecase.getCooldownRemaining();
-    if (mounted) setState(() => _cooldown = cooldown);
-  }
-
   void _onUnlocked() {
     if (!mounted) return;
     // Check stealth mode
@@ -173,6 +200,7 @@ class _LockScreenState extends State<LockScreen> {
     final box = await Hive.openBox<AppSettings>('app_settings_typed');
     final settings = box.get('settings') ?? AppSettings();
     if (!mounted) return;
+
     if (settings.stealthEnabled) {
       context.go('/calculator');
     } else {
