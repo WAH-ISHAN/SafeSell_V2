@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../services/auth_service.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/text_field_m3.dart';
@@ -12,8 +13,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen>
-    with TickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStateMixin {
   final _email = TextEditingController();
   final _pass = TextEditingController();
   final _pass2 = TextEditingController();
@@ -26,23 +26,16 @@ class _RegisterScreenState extends State<RegisterScreen>
   late final Animation<double> _slideUp;
 
   bool get _canCreate =>
-      _email.text.trim().length > 3 &&
-      _pass.text.length > 5 &&
-      _pass.text == _pass2.text;
+      _email.text.trim().length > 3 && _pass.text.length > 5 && _pass.text == _pass2.text;
 
   @override
   void initState() {
     super.initState();
 
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 650),
-    );
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
     _fade = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
-    _slideUp = Tween<double>(
-      begin: 22,
-      end: 0,
-    ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+    _slideUp = Tween<double>(begin: 22, end: 0)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
     _c.forward();
 
     _email.addListener(_rebuild);
@@ -71,8 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       SnackBar(
         content: Text(msg),
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFF87171) : const Color(0xFF141A24),
+        backgroundColor: isError ? const Color(0xFFF87171) : const Color(0xFF141A24),
       ),
     );
   }
@@ -83,17 +75,13 @@ class _RegisterScreenState extends State<RegisterScreen>
       return;
     }
     if (!_canCreate) {
-      _snack(
-        'Please enter a valid email and a stronger password.',
-        isError: true,
-      );
+      _snack('Please enter a valid email and a stronger password.', isError: true);
       return;
     }
 
     try {
       setState(() => _loading = true);
-      await _auth.registerWithEmail(_email.text, _pass.text);
-
+      await _auth.registerWithEmail(_email.text.trim(), _pass.text);
       if (!mounted) return;
       setState(() => _loading = false);
 
@@ -144,13 +132,17 @@ class _RegisterScreenState extends State<RegisterScreen>
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 412),
                         child: ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                          padding: const EdgeInsets.fromLTRB(24, 18, 24, 40),
                           children: [
-                            const SizedBox(height: 8),
-                            const _HeaderBlock(),
-                            const SizedBox(height: 22),
+                            const SizedBox(height: 18),
 
+                            // HEADER (Figma)
+                            const _RegisterFigmaHeader(),
+                            const SizedBox(height: 28),
+
+                            // FORM CARD (Figma)
                             GlassCard(
+                              padding: const EdgeInsets.all(24),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -158,8 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             const Text(
                                               "Create account",
@@ -174,9 +165,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                             Text(
                                               "Takes less than 1 minute",
                                               style: TextStyle(
-                                                color: const Color(
-                                                  0xFFEAF2FF,
-                                                ).withValues(alpha: 0.55),
+                                                color: const Color(0xFFEAF2FF)
+                                                    .withValues(alpha: 0.55),
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -188,16 +178,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                         width: 40,
                                         height: 40,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          color: const Color(
-                                            0xFF4DA3FF,
-                                          ).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(14),
+                                          color: const Color(0xFF4DA3FF).withValues(alpha: 0.12),
                                           border: Border.all(
-                                            color: const Color(
-                                              0xFF4DA3FF,
-                                            ).withValues(alpha: 0.20),
+                                            color: const Color(0xFF4DA3FF).withValues(alpha: 0.20),
                                           ),
                                         ),
                                         child: const Icon(
@@ -216,7 +200,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     icon: Icons.mail_rounded,
                                     keyboardType: TextInputType.emailAddress,
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
 
                                   TextFieldM3(
                                     controller: _pass,
@@ -224,7 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     icon: Icons.lock_rounded,
                                     obscure: true,
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
 
                                   TextFieldM3(
                                     controller: _pass2,
@@ -235,30 +219,23 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                                   if (_pass.text.isNotEmpty &&
                                       _pass2.text.isNotEmpty &&
-                                      _pass.text != _pass2.text)
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 8),
-                                      child: Text(
-                                        "Passwords do not match",
-                                        style: TextStyle(
-                                          color: Color(0xFFF87171),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                      _pass.text != _pass2.text) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      "Passwords do not match",
+                                      style: TextStyle(
+                                        color: Color(0xFFF87171),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
+                                  ],
 
                                   const SizedBox(height: 16),
 
                                   PrimaryButton(
-                                    text:
-                                        _loading
-                                            ? 'Creating...'
-                                            : 'Create Account',
-                                    onPressed:
-                                        (_loading || !_canCreate)
-                                            ? null
-                                            : _register,
+                                    text: _loading ? 'Creating...' : 'Create Account',
+                                    onPressed: (_loading || !_canCreate) ? null : _register,
                                     icon: Icons.arrow_forward_rounded,
                                   ),
 
@@ -272,19 +249,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                                           "By creating an account you agree to our ",
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: const Color(
-                                              0xFFEAF2FF,
-                                            ).withValues(alpha: 0.40),
+                                            color: const Color(0xFFEAF2FF).withValues(alpha: 0.40),
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             height: 1.4,
                                           ),
                                         ),
                                         InkWell(
-                                          onTap:
-                                              () => _snack(
-                                                "Terms not yet implemented",
-                                              ),
+                                          onTap: () => _snack("Terms not yet implemented"),
                                           child: const Text(
                                             "Terms",
                                             style: TextStyle(
@@ -297,18 +269,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                                         Text(
                                           " and ",
                                           style: TextStyle(
-                                            color: const Color(
-                                              0xFFEAF2FF,
-                                            ).withValues(alpha: 0.40),
+                                            color: const Color(0xFFEAF2FF).withValues(alpha: 0.40),
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                         InkWell(
-                                          onTap:
-                                              () => _snack(
-                                                "Privacy Policy not yet implemented",
-                                              ),
+                                          onTap: () => _snack("Privacy Policy not yet implemented"),
                                           child: const Text(
                                             "Privacy Policy",
                                             style: TextStyle(
@@ -339,16 +306,36 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 }
 
-class _HeaderBlock extends StatelessWidget {
-  const _HeaderBlock();
+/// Header matching Figma: ShieldCheck gradient icon + title + subtitle + chips
+class _RegisterFigmaHeader extends StatelessWidget {
+  const _RegisterFigmaHeader();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
-        SafeShellLogo(size: 74),
-        SizedBox(height: 16),
-        Text(
+        Container(
+          width: 74,
+          height: 74,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF4DA3FF), Color(0xFF2B7FDB)],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF4DA3FF).withValues(alpha: 0.28),
+                blurRadius: 28,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.verified_user_rounded, color: Colors.white, size: 36),
+        ),
+        const SizedBox(height: 18),
+        const Text(
           "Create Secure Vault",
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -358,18 +345,52 @@ class _HeaderBlock extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           "Protect your private files with end-to-end encryption",
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Color(0x99EAF2FF),
+            color: const Color(0xFFEAF2FF).withValues(alpha: 0.60),
             fontSize: 15,
             fontWeight: FontWeight.w600,
             height: 1.4,
           ),
         ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            _TrustChip(text: 'Zero-knowledge'),
+            SizedBox(width: 10),
+            _TrustChip(text: 'Encrypted Vault'),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _TrustChip extends StatelessWidget {
+  final String text;
+  const _TrustChip({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: const Color(0xFFEAF2FF).withValues(alpha: 0.70),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

@@ -1,14 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import 'subscription_screen.dart';
-
-/// ✅ React SupportScreen → Flutter SupportScreen (Premium)
-/// - Animated premium background (2 moving blobs)
-/// - Smart search + tag pills
-/// - Contact tiles (Live Chat / Email / Help Center)
-/// - Quick Help list (filter by search)
-/// - Same glass style as your other screens
+import '../../app/theme.dart';
+import '../../ui/widgets/premium_ui.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -27,38 +22,38 @@ class _SupportScreenState extends State<SupportScreen>
 
   final _q = TextEditingController();
 
-  final List<_Faq> _faqs = [
-    const _Faq(
+  final List<_Faq> _faqs = const [
+    _Faq(
       title: "How to recover my security key?",
       desc: "Learn what is recoverable and best practices.",
       tag: "Security",
       icon: Icons.shield_rounded,
       tone: _Tone.blue,
-      onTap: null,
+      action: null,
     ),
-    const _Faq(
+    _Faq(
       title: "How to upgrade to Pro?",
       desc: "Plans, billing and removing ads.",
       tag: "Billing",
       icon: Icons.flash_on_rounded,
       tone: _Tone.green,
-      onTap: _FaqAction.goSubscription,
+      action: _FaqAction.goSubscription,
     ),
-    const _Faq(
+    _Faq(
       title: "How does encryption work?",
       desc: "A simple overview of encryption in SafeShell.",
       tag: "Privacy",
       icon: Icons.auto_awesome_rounded,
       tone: _Tone.purple,
-      onTap: null,
+      action: null,
     ),
-    const _Faq(
+    _Faq(
       title: "I can't sign in (Google / Email).",
       desc: "Fix common login and network issues.",
       tag: "Account",
       icon: Icons.schedule_rounded,
       tone: _Tone.amber,
-      onTap: null,
+      action: null,
     ),
   ];
 
@@ -66,21 +61,15 @@ class _SupportScreenState extends State<SupportScreen>
   void initState() {
     super.initState();
 
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _fade = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
-    _slideUp = Tween<double>(
-      begin: 18,
-      end: 0,
-    ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+    _slideUp = Tween<double>(begin: 14, end: 0).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeOutCubic),
+    );
     _c.forward();
 
-    _bgC = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat(reverse: true);
+    _bgC = AnimationController(vsync: this, duration: const Duration(seconds: 12))
+      ..repeat(reverse: true);
 
     _q.addListener(() => setState(() {}));
   }
@@ -138,11 +127,9 @@ class _SupportScreenState extends State<SupportScreen>
   }
 
   void _handleFaqTap(_Faq f) {
-    if (f.onTap == _FaqAction.goSubscription) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-      );
+    if (f.action == _FaqAction.goSubscription) {
+      // ✅ Keep your routing style
+      context.go('/subscription');
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
@@ -155,8 +142,6 @@ class _SupportScreenState extends State<SupportScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -173,7 +158,7 @@ class _SupportScreenState extends State<SupportScreen>
           // base
           Container(color: const Color(0xFF0B0F14)),
 
-          // radial field (React bg language)
+          // premium background (radial)
           const _PremiumRadialField(
             a: Alignment(-0.85, -0.85),
             aColor: Color(0x1F4DA3FF),
@@ -229,10 +214,10 @@ class _SupportScreenState extends State<SupportScreen>
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                           children: [
                             // header
-                            Text(
+                            const Text(
                               "Need help?",
                               style: TextStyle(
-                                color: cs.onSurface,
+                                color: Colors.white,
                                 fontSize: 26,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.3,
@@ -244,24 +229,22 @@ class _SupportScreenState extends State<SupportScreen>
                               style: TextStyle(
                                 color: const Color(0xFFEAF2FF).o(0.60),
                                 fontWeight: FontWeight.w600,
+                                fontSize: 14,
                               ),
                             ),
 
                             const SizedBox(height: 16),
 
-                            // search card
-                            _GlassCard(
+                            // ===== Search card =====
+                            GlassCard(
                               padding: const EdgeInsets.all(14),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(
-                                        Icons.search_rounded,
-                                        size: 18,
-                                        color: Color(0xFF4DA3FF),
-                                      ),
+                                      const Icon(Icons.search_rounded,
+                                          size: 18, color: Color(0xFF4DA3FF)),
                                       const SizedBox(width: 8),
                                       const Text(
                                         "Search help articles",
@@ -278,9 +261,7 @@ class _SupportScreenState extends State<SupportScreen>
                                           child: Text(
                                             "Clear",
                                             style: TextStyle(
-                                              color: const Color(
-                                                0xFFEAF2FF,
-                                              ).o(0.55),
+                                              color: const Color(0xFFEAF2FF).o(0.55),
                                               fontWeight: FontWeight.w800,
                                               fontSize: 12,
                                             ),
@@ -293,22 +274,14 @@ class _SupportScreenState extends State<SupportScreen>
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(16),
                                       color: Colors.white.o(0.05),
-                                      border: Border.all(
-                                        color: Colors.white.o(0.10),
-                                      ),
+                                      border: Border.all(color: Colors.white.o(0.10)),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
                                     child: Row(
                                       children: [
-                                        Icon(
-                                          Icons.search_rounded,
-                                          size: 18,
-                                          color: const Color(
-                                            0xFFEAF2FF,
-                                          ).o(0.45),
-                                        ),
+                                        Icon(Icons.search_rounded,
+                                            size: 18,
+                                            color: const Color(0xFFEAF2FF).o(0.45)),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: TextField(
@@ -320,12 +293,9 @@ class _SupportScreenState extends State<SupportScreen>
                                             ),
                                             decoration: InputDecoration(
                                               border: InputBorder.none,
-                                              hintText:
-                                                  "Type: key recovery, billing, encryption…",
+                                              hintText: "Type: key recovery, billing, encryption…",
                                               hintStyle: TextStyle(
-                                                color: const Color(
-                                                  0xFFEAF2FF,
-                                                ).o(0.35),
+                                                color: const Color(0xFFEAF2FF).o(0.35),
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -339,22 +309,10 @@ class _SupportScreenState extends State<SupportScreen>
                                     spacing: 8,
                                     runSpacing: 8,
                                     children: [
-                                      _TagPill(
-                                        label: "Security",
-                                        onTap: () => _setTag("Security"),
-                                      ),
-                                      _TagPill(
-                                        label: "Billing",
-                                        onTap: () => _setTag("Billing"),
-                                      ),
-                                      _TagPill(
-                                        label: "Account",
-                                        onTap: () => _setTag("Account"),
-                                      ),
-                                      _TagPill(
-                                        label: "Privacy",
-                                        onTap: () => _setTag("Privacy"),
-                                      ),
+                                      _TagPill(label: "Security", onTap: () => _setTag("Security")),
+                                      _TagPill(label: "Billing", onTap: () => _setTag("Billing")),
+                                      _TagPill(label: "Account", onTap: () => _setTag("Account")),
+                                      _TagPill(label: "Privacy", onTap: () => _setTag("Privacy")),
                                     ],
                                   ),
                                 ],
@@ -363,7 +321,7 @@ class _SupportScreenState extends State<SupportScreen>
 
                             const SizedBox(height: 16),
 
-                            // contact tiles
+                            // ===== Contact tiles =====
                             _SupportTile(
                               tone: _Tone.green,
                               icon: Icons.chat_bubble_rounded,
@@ -397,7 +355,7 @@ class _SupportScreenState extends State<SupportScreen>
 
                             const SizedBox(height: 18),
 
-                            // quick help header
+                            // ===== Quick help header =====
                             Row(
                               children: [
                                 const Text(
@@ -421,59 +379,44 @@ class _SupportScreenState extends State<SupportScreen>
                             ),
                             const SizedBox(height: 10),
 
-                            // faq list
-                            _GlassCard(
+                            // ===== FAQ list =====
+                            GlassCard(
                               padding: const EdgeInsets.all(10),
-                              child:
-                                  _filteredFaqs.isEmpty
-                                      ? Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 22,
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            const Text(
-                                              "No matches",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              "Try searching \"billing\" or \"key recovery\".",
-                                              style: TextStyle(
-                                                color: const Color(
-                                                  0xFFEAF2FF,
-                                                ).o(0.55),
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                      : Column(
+                              child: _filteredFaqs.isEmpty
+                                  ? Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 22),
+                                      child: Column(
                                         children: [
-                                          for (
-                                            int i = 0;
-                                            i < _filteredFaqs.length;
-                                            i++
-                                          ) ...[
-                                            _FaqRow(
-                                              faq: _filteredFaqs[i],
-                                              onTap:
-                                                  () => _handleFaqTap(
-                                                    _filteredFaqs[i],
-                                                  ),
+                                          const Text(
+                                            "No matches",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
                                             ),
-                                            if (i != _filteredFaqs.length - 1)
-                                              Divider(
-                                                height: 10,
-                                                color: Colors.white.o(0.06),
-                                              ),
-                                          ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            "Try searching \"billing\" or \"key recovery\".",
+                                            style: TextStyle(
+                                              color: const Color(0xFFEAF2FF).o(0.55),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                         ],
                                       ),
+                                    )
+                                  : Column(
+                                      children: [
+                                        for (int i = 0; i < _filteredFaqs.length; i++) ...[
+                                          _FaqRow(
+                                            faq: _filteredFaqs[i],
+                                            onTap: () => _handleFaqTap(_filteredFaqs[i]),
+                                          ),
+                                          if (i != _filteredFaqs.length - 1)
+                                            Divider(height: 10, color: Colors.white.o(0.06)),
+                                        ],
+                                      ],
+                                    ),
                             ),
 
                             const SizedBox(height: 14),
@@ -506,7 +449,7 @@ class _SupportScreenState extends State<SupportScreen>
   }
 }
 
-/* ===================== Small UI parts ===================== */
+/* ===== Components ===== */
 
 class _TagPill extends StatelessWidget {
   final String label;
@@ -566,7 +509,7 @@ class _SupportTile extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(26),
       onTap: onTap,
-      child: _GlassCard(
+      child: GlassCard(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
@@ -732,10 +675,7 @@ class _FaqRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: const Color(0xFFEAF2FF).o(0.35),
-            ),
+            Icon(Icons.chevron_right_rounded, color: const Color(0xFFEAF2FF).o(0.35)),
           ],
         ),
       ),
@@ -768,7 +708,7 @@ class _SmallChip extends StatelessWidget {
   }
 }
 
-/* ===================== Background helpers ===================== */
+/* ===== Background helpers ===== */
 
 class _PremiumRadialField extends StatelessWidget {
   final Alignment a;
@@ -880,10 +820,9 @@ class _TopBlur extends StatelessWidget {
   }
 }
 
-/* ===================== Data ===================== */
+/* ===== Data ===== */
 
 enum _FaqAction { goSubscription }
-
 enum _Tone { blue, green, purple, amber, red }
 
 class _Faq {
@@ -892,7 +831,7 @@ class _Faq {
   final String tag;
   final IconData icon;
   final _Tone tone;
-  final _FaqAction? onTap;
+  final _FaqAction? action;
 
   const _Faq({
     required this.title,
@@ -900,7 +839,7 @@ class _Faq {
     required this.tag,
     required this.icon,
     required this.tone,
-    this.onTap,
+    this.action,
   });
 }
 
@@ -934,47 +873,3 @@ Color _toneColor2(_Tone t) {
   }
 }
 
-/* ===================== Glass card ===================== */
-
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsets padding;
-  const _GlassCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            color: Colors.white.o(0.06),
-            border: Border.all(color: Colors.white.o(0.10)),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 30,
-                spreadRadius: 2,
-                color: Colors.black.o(0.25),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// ✅ withOpacity deprecated warning avoid helper
-extension _ColorOpacity on Color {
-  Color o(double opacity) {
-    final a = (opacity.clamp(0.0, 1.0) * 255).round();
-    return withAlpha(a);
-  }
-}

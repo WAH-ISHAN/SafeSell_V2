@@ -1,9 +1,9 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../models/registered_device.dart';
 import '../../services/device_info_service.dart';
+import '../widgets/premium_ui.dart';
 
 class DeviceManagerScreen extends StatefulWidget {
   const DeviceManagerScreen({super.key});
@@ -24,6 +24,7 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen>
       vsync: this,
       duration: const Duration(seconds: 12),
     )..repeat(reverse: true);
+
     _deviceService.init().then((_) {
       if (mounted) setState(() {});
     });
@@ -90,15 +91,12 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen>
         ),
         content: Text(
           'Remove "${device.name}" from your registered devices?',
-          style: TextStyle(color: Colors.white.withAlpha(178)),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.70)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -113,17 +111,20 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen>
         ],
       ),
     );
+
     if (confirm != true || !mounted) return;
+
     await _deviceService.removeDevice(device);
-    if (mounted) {
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${device.name} removed'),
-          backgroundColor: const Color(0xFF1A2030),
-        ),
-      );
-    }
+
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${device.name} removed'),
+        backgroundColor: const Color(0xFF141A24),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   String _formatDate(DateTime dt) =>
@@ -133,7 +134,6 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final devices = _deviceService.devices;
     final isLoading = _deviceService.loading;
 
@@ -144,97 +144,88 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen>
           'Device Manager',
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.2),
         ),
-        backgroundColor: Colors.transparent,
+        centerTitle: true,
         elevation: 0,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF0B0F14),
-                  const Color(0xFF0B0F14),
-                  Color.alphaBlend(
-                    cs.primary.withAlpha(36),
-                    const Color(0xFF0B0F14),
-                  ),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
+          // premium base
+          const PremiumBackground(child: SizedBox.shrink()),
+
+          // extra glow blobs (like React)
           AnimatedBuilder(
             animation: _bgC,
-            builder: (context, child) {
-              final t = _bgC.value;
+            builder: (_, __) {
+              final t = Curves.easeInOut.transform(_bgC.value);
               return Stack(
                 children: [
                   Positioned(
-                    top: -120 + (t * 18),
+                    top: 140 + (t * 14),
                     right: -120 - (t * 18),
                     child: _GlowBlob(
-                      size: 520,
-                      color: const Color(0xFF4DA3FF).withAlpha(31),
+                      size: 320,
                       blur: 120,
+                      color: const Color(0xFF4DA3FF).withValues(alpha: 0.10),
                     ),
                   ),
                   Positioned(
-                    bottom: 60 - (t * 12),
-                    left: -110 + (t * 16),
+                    bottom: 80 - (t * 10),
+                    left: -120 + (t * 14),
                     child: _GlowBlob(
-                      size: 460,
-                      color: const Color(0xFF0A2A4F).withAlpha(77),
-                      blur: 110,
+                      size: 300,
+                      blur: 100,
+                      color: const Color(0xFF0A2A4F).withValues(alpha: 0.20),
                     ),
                   ),
                 ],
               );
             },
           ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(height: 88, color: Colors.transparent),
-                ),
-              ),
-            ),
-          ),
+
           SafeArea(
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 412),
                 child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF4DA3FF),
+                        ),
+                      )
                     : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
                         children: [
-                          _buildInfoBanner(devices),
+                          _InfoBanner(devices: devices),
                           const SizedBox(height: 14),
+
                           if (devices.isEmpty)
-                            _buildEmptyState()
+                            const _EmptyState()
                           else
-                            ...devices.map(
-                              (d) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _DeviceCard(
-                                  device: d,
-                                  onDetails: () => _showDeviceDetails(d),
-                                  onRemove: d.isCurrentDevice
-                                      ? null
-                                      : () => _removeDevice(d),
+                            ...List.generate(devices.length, (i) {
+                              final d = devices[i];
+                              return _SlideIn(
+                                delay: Duration(milliseconds: 60 * i),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _DeviceRowCard(
+                                    device: d,
+                                    onDetails: () => _showDeviceDetails(d),
+                                    onRemove: d.isCurrentDevice
+                                        ? null
+                                        : () => _removeDevice(d),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          const SizedBox(height: 8),
-                          _buildSecurityTip(),
+                              );
+                            }),
+
+                          const SizedBox(height: 6),
+                          const _SecurityTip(),
                         ],
                       ),
               ),
@@ -244,120 +235,20 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen>
       ),
     );
   }
-
-  Widget _buildInfoBanner(List<RegisteredDevice> devices) {
-    final total = devices.length;
-    final trusted = devices.where((d) => d.isTrusted).length;
-
-    return _GlassCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          const _ChipIcon(icon: Icons.devices_rounded),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$total device${total != 1 ? 's' : ''} registered',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$trusted trusted • ${total - trusted} untrusted',
-                  style: TextStyle(
-                    color: Colors.white.withAlpha(140),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return _GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-      child: Column(
-        children: [
-          Icon(
-            Icons.devices_other_rounded,
-            size: 48,
-            color: Colors.white.withAlpha(77),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No devices registered',
-            style: TextStyle(
-              color: Colors.white.withAlpha(178),
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'This device will be registered automatically.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withAlpha(102),
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSecurityTip() {
-    return _GlassCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            size: 18,
-            color: const Color(0xFF4DA3FF).withAlpha(204),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              "Remove any device you don't recognise immediately. "
-              'Unknown devices may indicate unauthorised access.',
-              style: TextStyle(
-                color: Colors.white.withAlpha(140),
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-// ── Device Card ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Widgets
 
-class _DeviceCard extends StatelessWidget {
+class _DeviceRowCard extends StatelessWidget {
   final RegisteredDevice device;
   final VoidCallback onDetails;
   final VoidCallback? onRemove;
 
-  const _DeviceCard({
+  const _DeviceRowCard({
     required this.device,
     required this.onDetails,
-    this.onRemove,
+    required this.onRemove,
   });
 
   @override
@@ -365,148 +256,140 @@ class _DeviceCard extends StatelessWidget {
     final isOnline = device.isOnline;
     final isCurrent = device.isCurrentDevice;
 
-    return _GlassCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
+    return GlassCard(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(26),
+        onTap: onDetails,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
             children: [
-              _DeviceIcon(icon: _platformIcon(device.platform)),
-              if (isOnline)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 11,
-                    height: 11,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF22C55E),
-                      border: Border.all(
-                        color: const Color(0xFF0B0F14),
-                        width: 2,
+              Stack(
+                children: [
+                  _IconTile(icon: _platformIcon(device.platform)),
+                  if (isOnline)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 11,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF22C55E),
+                          border: Border.all(
+                            color: const Color(0xFF0B0F14),
+                            width: 2,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            device.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (isCurrent) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFF4DA3FF)
+                                  .withValues(alpha: 0.12),
+                              border: Border.all(
+                                color: const Color(0xFF4DA3FF)
+                                    .withValues(alpha: 0.20),
+                              ),
+                            ),
+                            child: const Text(
+                              'This device',
+                              style: TextStyle(
+                                color: Color(0xFF4DA3FF),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      device.displayModel.isNotEmpty
+                          ? device.displayModel
+                          : device.model,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFFEAF2FF).withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          isOnline ? Icons.circle : Icons.circle_outlined,
+                          size: 8,
+                          color: isOnline
+                              ? const Color(0xFF22C55E)
+                              : Colors.white.withValues(alpha: 0.30),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            isOnline
+                                ? 'Online • Active now'
+                                : 'Offline • ${device.lastSeenText}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0xFFEAF2FF)
+                                  .withValues(alpha: 0.45),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
+
+              const SizedBox(width: 10),
+
+              // delete button like React (trash icon)
+              _IconAction(
+                icon: Icons.delete_outline_rounded,
+                onTap: onRemove,
+              ),
             ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        device.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                    if (isCurrent)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: const Color(0xFF4DA3FF).withAlpha(31),
-                          border: Border.all(
-                            color: const Color(0xFF4DA3FF).withAlpha(77),
-                          ),
-                        ),
-                        child: const Text(
-                          'This device',
-                          style: TextStyle(
-                            color: Color(0xFF4DA3FF),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  device.model,
-                  style: TextStyle(
-                    color: Colors.white.withAlpha(140),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      isOnline ? Icons.circle : Icons.circle_outlined,
-                      size: 8,
-                      color: isOnline
-                          ? const Color(0xFF22C55E)
-                          : Colors.white.withAlpha(77),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isOnline
-                          ? 'Online • Active now'
-                          : 'Offline • ${device.lastSeenText}',
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(115),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      device.isTrusted
-                          ? Icons.verified_user_rounded
-                          : Icons.gpp_bad_rounded,
-                      size: 12,
-                      color: device.isTrusted
-                          ? const Color(0xFF22C55E).withAlpha(204)
-                          : const Color(0xFFEF4444).withAlpha(204),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      device.isTrusted ? 'Trusted' : 'Untrusted',
-                      style: TextStyle(
-                        color: device.isTrusted
-                            ? const Color(0xFF22C55E).withAlpha(204)
-                            : const Color(0xFFEF4444).withAlpha(204),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    _GhostButton(label: 'Details', onTap: onDetails),
-                    if (onRemove != null)
-                      _DangerGhostButton(
-                        label: 'Remove',
-                        onTap: onRemove!,
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -527,7 +410,273 @@ class _DeviceCard extends StatelessWidget {
   }
 }
 
-// ── Details Bottom Sheet ──────────────────────────────────────────────────────
+class _IconAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  const _IconAction({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.white.withValues(alpha: 0.05),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: disabled
+              ? Colors.white.withValues(alpha: 0.25)
+              : const Color(0xFFEAF2FF).withValues(alpha: 0.70),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconTile extends StatelessWidget {
+  final IconData icon;
+  const _IconTile({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Icon(icon, color: const Color(0xFF4DA3FF), size: 24),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  final List<RegisteredDevice> devices;
+  const _InfoBanner({required this.devices});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = devices.length;
+    final trusted = devices.where((d) => d.isTrusted).length;
+
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: const Color(0xFF4DA3FF).withValues(alpha: 0.12),
+                border: Border.all(
+                  color: const Color(0xFF4DA3FF).withValues(alpha: 0.20),
+                ),
+              ),
+              child: const Icon(
+                Icons.devices_rounded,
+                color: Color(0xFF4DA3FF),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$total device${total == 1 ? '' : 's'} registered',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$trusted trusted • ${total - trusted} untrusted',
+                    style: TextStyle(
+                      color: const Color(0xFFEAF2FF).withValues(alpha: 0.55),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 38, horizontal: 22),
+        child: Column(
+          children: [
+            Icon(
+              Icons.devices_other_rounded,
+              size: 48,
+              color: Colors.white.withValues(alpha: 0.30),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No devices registered',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'This device will be registered automatically.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: const Color(0xFFEAF2FF).withValues(alpha: 0.40),
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecurityTip extends StatelessWidget {
+  const _SecurityTip();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: const Color(0xFF4DA3FF).withValues(alpha: 0.85),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Remove any device you don't recognise immediately. "
+                "Unknown devices may indicate unauthorised access.",
+                style: TextStyle(
+                  color: const Color(0xFFEAF2FF).withValues(alpha: 0.55),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SlideIn extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+  const _SlideIn({required this.child, required this.delay});
+
+  @override
+  State<_SlideIn> createState() => _SlideInState();
+}
+
+class _SlideInState extends State<_SlideIn> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
+    _t = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    Future.delayed(widget.delay, () {
+      if (mounted) _c.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        return Opacity(
+          opacity: _t.value,
+          child: Transform.translate(
+            offset: Offset(-14 * (1 - _t.value), 0),
+            child: widget.child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GlowBlob extends StatelessWidget {
+  final Color color;
+  final double size;
+  final double blur;
+
+  const _GlowBlob({
+    required this.color,
+    required this.size,
+    required this.blur,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
+          boxShadow: [BoxShadow(blurRadius: blur, color: color)],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom Sheet (details) — same behavior, premium UI
 
 class _DeviceDetailsSheet extends StatefulWidget {
   final RegisteredDevice device;
@@ -565,7 +714,10 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
   }
 
   Future<void> _saveRename() async {
-    await widget.onRename(_nameCtrl.text);
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    await widget.onRename(name);
+    if (!mounted) return;
     setState(() => _renaming = false);
   }
 
@@ -577,16 +729,15 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF0F1520).withAlpha(242),
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            color: const Color(0xFF0F1520).withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border(
-              top: BorderSide(color: Colors.white.withAlpha(26)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
             ),
           ),
           padding: EdgeInsets.fromLTRB(
             24,
-            20,
+            18,
             24,
             24 + MediaQuery.of(context).viewInsets.bottom,
           ),
@@ -599,15 +750,16 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(51),
+                    color: Colors.white.withValues(alpha: 0.20),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
               Row(
                 children: [
-                  _DeviceIcon(icon: _platformIcon(widget.device.platform)),
+                  _SheetIconTile(icon: _platformIcon(widget.device.platform)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _renaming
@@ -618,6 +770,7 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
                               fontSize: 17,
+                              letterSpacing: -0.2,
                             ),
                             decoration: InputDecoration(
                               isDense: true,
@@ -625,7 +778,7 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                               border: InputBorder.none,
                               hintText: 'Device name',
                               hintStyle: TextStyle(
-                                color: Colors.white.withAlpha(77),
+                                color: Colors.white.withValues(alpha: 0.35),
                               ),
                             ),
                             onSubmitted: (_) => _saveRename(),
@@ -636,6 +789,7 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
                               fontSize: 17,
+                              letterSpacing: -0.2,
                             ),
                           ),
                   ),
@@ -655,9 +809,11 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+
+              const SizedBox(height: 14),
               const Divider(color: Colors.white12),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+
               ...widget.details.entries.map(
                 (e) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -669,7 +825,8 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                         child: Text(
                           e.key,
                           style: TextStyle(
-                            color: Colors.white.withAlpha(115),
+                            color: const Color(0xFFEAF2FF)
+                                .withValues(alpha: 0.45),
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -689,16 +846,16 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 10),
               const Divider(color: Colors.white12),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+
               Row(
                 children: [
                   Expanded(
-                    child: _ActionButton(
-                      label: widget.device.isTrusted
-                          ? 'Mark Untrusted'
-                          : 'Mark Trusted',
+                    child: _SheetAction(
+                      label: widget.device.isTrusted ? 'Mark Untrusted' : 'Mark Trusted',
                       icon: widget.device.isTrusted
                           ? Icons.gpp_bad_rounded
                           : Icons.verified_user_rounded,
@@ -714,7 +871,7 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
                   if (widget.onRemove != null) ...[
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _ActionButton(
+                      child: _SheetAction(
                         label: 'Remove',
                         icon: Icons.delete_outline_rounded,
                         color: const Color(0xFFEF4444),
@@ -750,13 +907,32 @@ class _DeviceDetailsSheetState extends State<_DeviceDetailsSheet> {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _SheetIconTile extends StatelessWidget {
+  final IconData icon;
+  const _SheetIconTile({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Icon(icon, color: Colors.white.withValues(alpha: 0.85), size: 20),
+    );
+  }
+}
+
+class _SheetAction extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionButton({
+  const _SheetAction({
     required this.label,
     required this.icon,
     required this.color,
@@ -772,8 +948,8 @@ class _ActionButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: color.withAlpha(31),
-          border: Border.all(color: color.withAlpha(77)),
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -789,171 +965,6 @@ class _ActionButton extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Shared UI ─────────────────────────────────────────────────────────────────
-
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsets padding;
-
-  const _GlassCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            color: Colors.white.withAlpha(15),
-            border: Border.all(color: Colors.white.withAlpha(26)),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 30,
-                spreadRadius: 2,
-                color: Colors.black.withAlpha(64),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-class _GlowBlob extends StatelessWidget {
-  final Color color;
-  final double size;
-  final double blur;
-
-  const _GlowBlob({
-    required this.color,
-    required this.size,
-    required this.blur,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-          boxShadow: [BoxShadow(blurRadius: blur, color: color)],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChipIcon extends StatelessWidget {
-  final IconData icon;
-  const _ChipIcon({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: Colors.white.withAlpha(15),
-        border: Border.all(color: Colors.white.withAlpha(26)),
-      ),
-      child: Icon(icon, color: const Color(0xFF4DA3FF), size: 20),
-    );
-  }
-}
-
-class _DeviceIcon extends StatelessWidget {
-  final IconData icon;
-  const _DeviceIcon({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: Colors.white.withAlpha(15),
-        border: Border.all(color: Colors.white.withAlpha(26)),
-      ),
-      child: Icon(icon, color: Colors.white.withAlpha(217), size: 20),
-    );
-  }
-}
-
-class _GhostButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _GhostButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white.withAlpha(15),
-          border: Border.all(color: Colors.white.withAlpha(26)),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DangerGhostButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _DangerGhostButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white.withAlpha(15),
-          border: Border.all(
-            color: const Color(0xFFEF4444).withAlpha(89),
-          ),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFFEF4444),
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-          ),
         ),
       ),
     );

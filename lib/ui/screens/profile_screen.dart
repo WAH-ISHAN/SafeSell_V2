@@ -1,17 +1,23 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../security/key_manager.dart';
 import '../../models/app_settings.dart';
 import '../../services/billing_service.dart';
 import '../../services/vault_service.dart';
 
+
+/// âœ… React ProfileScreen layout â†’ Flutter version
+/// - same premium background language (radials + blobs + grain)
+/// - header + â€œsecurity orbâ€
+/// --- identity card (avatar + verified chip + plan/risk chips + info rows + mini stats)
+/// - Pro upgrade CTA card
+/// - Account list (Sign out)
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -21,45 +27,44 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with TickerProviderStateMixin {
+  late final AnimationController _bgC;
   late final AnimationController _c;
   late final Animation<double> _fade;
   late final Animation<double> _slideUp;
 
-  late final AnimationController _bgC;
-
   final _km = KeyManager();
   final _billing = BillingService();
   final _vault = VaultService();
-  String? _keyB64;
-  bool _revealKey = false;
-  bool _keyLoading = false;
+
   VaultStats? _vaultStats;
   AppSettings? _settings;
   bool _statsLoading = true;
 
+  String? _keyB64;
+  bool _keyLoading = false;
+
   @override
   void initState() {
     super.initState();
-
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _fade = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
-    _slideUp = Tween<double>(
-      begin: 18,
-      end: 0,
-    ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-    _c.forward();
 
     _bgC = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 12),
     )..repeat(reverse: true);
 
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fade = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    _slideUp = Tween<double>(begin: 18, end: 0).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeOutCubic),
+    );
+    _c.forward();
+
     _billing.init();
-    _loadKey();
     _loadStats();
+    _loadKey();
   }
 
   @override
@@ -67,6 +72,23 @@ class _ProfileScreenState extends State<ProfileScreen>
     _bgC.dispose();
     _c.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final stats = await _vault.getStats();
+      // if you store settings elsewhere, keep your existing approach
+      final settings = AppSettings();
+      if (!mounted) return;
+      setState(() {
+        _vaultStats = stats;
+        _settings = settings;
+        _statsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _statsLoading = false);
+    }
   }
 
   Future<void> _loadKey() async {
@@ -84,28 +106,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Future<void> _loadStats() async {
+  Future<void> _logout() async {
     try {
-      final stats = await _vault.getStats();
-      final settingsBox = Hive.box<AppSettings>('app_settings_typed');
-      final settings = settingsBox.values.isNotEmpty
-          ? settingsBox.values.first
-          : AppSettings();
-      if (!mounted) return;
-      setState(() {
-        _vaultStats = stats;
-        _settings = settings;
-        _statsLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _statsLoading = false);
-    }
-  }
-
-  String _maskKey(String k) {
-    if (k.length <= 12) return "••••••••••••";
-    return "${k.substring(0, 6)}••••••••••••••••${k.substring(k.length - 6)}";
+      _km.lock();
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+    if (mounted) context.go('/login');
   }
 
   void _snack(String msg) {
@@ -115,9 +121,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  String _formatJoinDate(DateTime? date) {
-    if (date == null) return 'Unknown';
-    const months = [
+  String _formatJoinDate(DateTime? dt) {
+    if (dt == null) return 'Unknown';
+    const m = [
       'Jan',
       'Feb',
       'Mar',
@@ -131,236 +137,47 @@ class _ProfileScreenState extends State<ProfileScreen>
       'Nov',
       'Dec'
     ];
-    return '${months[date.month - 1]} ${date.year}';
-  }
-
-  Future<void> _logout() async {
-    try {
-      _km.lock();
-      await FirebaseAuth.instance.signOut();
-      try {
-        final settingsBox = Hive.box<AppSettings>('app_settings_typed');
-        await settingsBox.clear();
-      } catch (_) {}
-    } catch (_) {}
-    if (mounted) context.go('/login');
-  }
-
-  // ── New account actions ───────────────────────────────────────────────
-
-  bool _isEmailProvider() {
-    final providers = FirebaseAuth.instance.currentUser?.providerData
-            .map((p) => p.providerId)
-            .toList() ??
-        [];
-    return providers.contains('password');
-  }
-
-  String _signInProvider() {
-    final providers = FirebaseAuth.instance.currentUser?.providerData
-            .map((p) => p.providerId)
-            .toList() ??
-        [];
-    if (providers.contains('google.com')) return 'Google';
-    if (providers.contains('password')) return 'Email / Password';
-    if (providers.contains('apple.com')) return 'Apple';
-    if (providers.isEmpty) return 'Guest';
-    return providers.first;
-  }
-
-  String _formatLastLogin(DateTime? dt) {
-    if (dt == null) return 'Unknown';
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays == 1) return 'Yesterday';
-    return '${diff.inDays} days ago';
-  }
-
-  Future<void> _showEditNameDialog() async {
-    final ctrl = TextEditingController(
-      text: FirebaseAuth.instance.currentUser?.displayName ?? '',
-    );
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2030),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Display Name',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Enter your name',
-            hintStyle: TextStyle(color: Colors.white.withAlpha(77)),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white.withAlpha(51)),
-            ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF4DA3FF)),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                  color: Color(0xFF4DA3FF), fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      try {
-        await FirebaseAuth.instance.currentUser
-            ?.updateDisplayName(result);
-        if (mounted) {
-          setState(() {});
-          _snack('Name updated');
-        }
-      } catch (e) {
-        if (mounted) _snack('Failed to update name');
-      }
-    }
-  }
-
-  Future<void> _sendPasswordReset() async {
-    final email = FirebaseAuth.instance.currentUser?.email;
-    if (email == null || email.isEmpty) {
-      _snack('No email address associated with this account');
-      return;
-    }
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted) _snack('Password reset email sent to $email');
-    } catch (e) {
-      if (mounted) _snack('Failed to send reset email');
-    }
-  }
-
-  Future<void> _showDeleteAccountDialog() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2030),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Delete Account?',
-          style: TextStyle(
-              color: Color(0xFFF87171), fontWeight: FontWeight.w900),
-        ),
-        content: Text(
-          'This will permanently delete your account and all data. '
-          'This action cannot be undone.',
-          style:
-              TextStyle(color: Colors.white.withAlpha(178), height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(
-                  color: Color(0xFFF87171), fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      _km.lock();
-      await Hive.box<AppSettings>('app_settings_typed').clear();
-      await user?.delete();
-      if (mounted) context.go('/login');
-    } catch (e) {
-      if (mounted) {
-        _snack(
-          'Re-authentication required. Please sign out and back in first.',
-        );
-      }
-    }
-  }
-
-  Future<void> _showManageSubDialog() async {
-    if (!mounted) return;
-    _snack('To cancel, manage your subscription in Google Play Store.');
+    return '${m[dt.month - 1]} ${dt.year}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final name = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!.trim()
+        : 'User';
+    final email = user?.email ?? 'Not signed in';
+    final joined = _formatJoinDate(user?.metadata.creationTime);
+
+    final planText = _billing.isPro ? 'Pro Plan' : 'Free Plan';
+    final riskText = 'Low Risk'; // you can compute from security service later
+    final vaultStatus = 'Encrypted';
+    final keyStatus =
+        (_keyLoading) ? 'Loading' : ((_keyB64?.isNotEmpty ?? false) ? 'Key Active' : 'No Key');
+    final modeStatus = (_settings?.stealthEnabled ?? false) ? 'Stealth' : 'Normal';
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
-          "Profile",
+          'Profile',
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.2),
         ),
-        centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
       ),
       body: Stack(
         children: [
+          // base bg
           const ColoredBox(color: Color(0xFF0B0F14)),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(-0.75, -0.85),
-                  radius: 1.2,
-                  colors: [const Color(0xFF4DA3FF).o(0.10), Colors.transparent],
-                  stops: const [0.0, 0.55],
-                ),
-              ),
-            ),
+
+          // premium radials (same â€œDashboard languageâ€)
+          const Positioned.fill(
+            child: _RadialBG(),
           ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0.85, -0.55),
-                  radius: 1.1,
-                  colors: [const Color(0xFF0A2A4F).o(0.28), Colors.transparent],
-                  stops: const [0.0, 0.55],
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(-0.25, 0.85),
-                  radius: 1.2,
-                  colors: [const Color(0xFF4DA3FF).o(0.07), Colors.transparent],
-                  stops: const [0.0, 0.55],
-                ),
-              ),
-            ),
-          ),
+
+          // subtle grain
           Positioned.fill(
             child: IgnorePointer(
               child: Opacity(
@@ -369,34 +186,37 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
           ),
+
+          // animated blobs
           AnimatedBuilder(
             animation: _bgC,
             builder: (_, __) {
-              final t = _bgC.value;
+              final t = Curves.easeInOut.transform(_bgC.value);
               return Stack(
                 children: [
                   Positioned(
                     top: -120 + (t * 18),
-                    right: -120 - (t * 14),
+                    right: -120 - (t * 18),
                     child: _GlowBlob(
-                      color: const Color(0xFF4DA3FF).o(0.12),
                       size: 520,
                       blur: 120,
+                      color: const Color(0xFF4DA3FF).o(0.12),
                     ),
                   ),
                   Positioned(
                     bottom: 70 - (t * 12),
                     left: -120 + (t * 16),
                     child: _GlowBlob(
-                      color: const Color(0xFF0A2A4F).o(0.30),
                       size: 460,
                       blur: 110,
+                      color: const Color(0xFF0A2A4F).o(0.30),
                     ),
                   ),
                 ],
               );
             },
           ),
+
           SafeArea(
             child: AnimatedBuilder(
               animation: _c,
@@ -411,24 +231,58 @@ class _ProfileScreenState extends State<ProfileScreen>
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
                           children: [
-                            _Header(
-                              onTapOrb: () => _snack("Security details (TODO)"),
+                            // Header (Profile + subtitle + orb)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Profile',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.3,
+                                          height: 1.05,
+                                        ),
+                                      ),
+                                      SizedBox(height: 6),
+                                      Text(
+                                        'Manage your account and security.',
+                                        style: TextStyle(
+                                          color: Color(0xFFEAF2FF),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _SecurityOrb(
+                                  onTap: () => _snack('Security details (TODO)'),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 16),
 
+                            // Identity card
                             _GlassCard(
                               padding: const EdgeInsets.all(18),
                               child: Column(
                                 children: [
                                   Row(
                                     children: [
+                                      // avatar
                                       Container(
                                         width: 80,
                                         height: 80,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            26,
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(26),
                                           gradient: const LinearGradient(
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
@@ -440,9 +294,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           boxShadow: [
                                             BoxShadow(
                                               blurRadius: 28,
-                                              color: const Color(
-                                                0xFF4DA3FF,
-                                              ).o(0.35),
+                                              color: const Color(0xFF4DA3FF)
+                                                  .o(0.35),
                                             ),
                                           ],
                                         ),
@@ -462,11 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               children: [
                                                 Expanded(
                                                   child: Text(
-                                                    FirebaseAuth
-                                                            .instance
-                                                            .currentUser
-                                                            ?.displayName ??
-                                                        'User',
+                                                    name,
                                                     maxLines: 1,
                                                     overflow:
                                                         TextOverflow.ellipsis,
@@ -479,21 +328,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                     ),
                                                   ),
                                                 ),
-                                                if (FirebaseAuth
-                                                        .instance
-                                                        .currentUser
-                                                        ?.emailVerified ??
+                                                if (user?.emailVerified ??
                                                     false) ...[
                                                   const SizedBox(width: 8),
                                                   _Chip(
-                                                    icon:
-                                                        Icons.verified_rounded,
-                                                    text: "Verified",
+                                                    icon: Icons.verified_rounded,
+                                                    text: 'Verified',
                                                     fg: const Color(0xFF4DA3FF),
                                                     bg: Colors.white.o(0.05),
-                                                    border: Colors.white.o(
-                                                      0.10,
-                                                    ),
+                                                    border:
+                                                        Colors.white.o(0.10),
                                                   ),
                                                 ],
                                               ],
@@ -504,26 +348,24 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               runSpacing: 10,
                                               children: [
                                                 _Chip(
-                                                  icon: Icons.workspace_premium,
-                                                  text: _billing.isPro
-                                                      ? 'Pro Plan'
-                                                      : 'Free Plan',
+                                                  icon:
+                                                      Icons.workspace_premium_rounded,
+                                                  text: planText,
                                                   fg: const Color(0xFF4DA3FF),
-                                                  bg: const Color(
-                                                    0xFF4DA3FF,
-                                                  ).o(0.15),
-                                                  border: const Color(
-                                                    0xFF4DA3FF,
-                                                  ).o(0.25),
+                                                  bg: const Color(0xFF4DA3FF)
+                                                      .o(0.15),
+                                                  border:
+                                                      const Color(0xFF4DA3FF)
+                                                          .o(0.25),
                                                 ),
                                                 _Chip(
                                                   icon: Icons.shield_rounded,
-                                                  text: 'Protected',
-                                                  fg: const Color(
-                                                    0xFFEAF2FF,
-                                                  ).o(0.75),
+                                                  text: riskText,
+                                                  fg: const Color(0xFFEAF2FF)
+                                                      .o(0.75),
                                                   bg: Colors.white.o(0.05),
-                                                  border: Colors.white.o(0.10),
+                                                  border:
+                                                      Colors.white.o(0.10),
                                                 ),
                                               ],
                                             ),
@@ -533,422 +375,218 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ],
                                   ),
                                   const SizedBox(height: 16),
+
                                   _InfoRow(
                                     icon: Icons.mail_rounded,
-                                    label: FirebaseAuth
-                                            .instance.currentUser?.email ??
-                                        'Not signed in',
+                                    label: email,
                                   ),
                                   const SizedBox(height: 10),
                                   _InfoRow(
                                     icon: Icons.calendar_month_rounded,
-                                    label:
-                                        "Joined ${_formatJoinDate(FirebaseAuth.instance.currentUser?.metadata.creationTime)}",
+                                    label: 'Joined $joined',
                                   ),
+
                                   const SizedBox(height: 16),
                                   Row(
                                     children: [
                                       Expanded(
                                         child: _MiniStat(
-                                          icon: Icons.folder_rounded,
-                                          label: 'Files',
-                                          value: _statsLoading
-                                              ? '…'
-                                              : '${_vaultStats?.totalFiles ?? 0}',
+                                          icon: Icons.shield_rounded,
+                                          label: 'Vault',
+                                          value: vaultStatus,
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: _MiniStat(
-                                          icon: Icons.storage_rounded,
-                                          label: 'Size',
-                                          value: _statsLoading
-                                              ? '…'
-                                              : (_vaultStats?.formattedSize ?? '0 B'),
+                                          icon: Icons.key_rounded,
+                                          label: 'Key',
+                                          value: keyStatus,
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: _MiniStat(
-                                          icon: Icons.security_rounded,
-                                          label: 'Stealth',
-                                          value: (_settings?.stealthEnabled ?? false)
-                                              ? 'On'
-                                              : 'Off',
+                                          icon: Icons.tune_rounded,
+                                          label: 'Mode',
+                                          value: modeStatus,
                                         ),
                                       ),
                                     ],
                                   ),
+
+                                  // optional: tiny vault stats line (React doesnâ€™t have it, but useful)
+                                  const SizedBox(height: 14),
+                                  _statsLoading
+                                      ? Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Loading vault statsâ€¦',
+                                            style: TextStyle(
+                                              color: const Color(0xFFEAF2FF)
+                                                  .o(0.55),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        )
+                                      : Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            '${_vaultStats?.totalFiles ?? 0} files â€¢ ${_vaultStats?.formattedSize ?? '0 B'}',
+                                            style: TextStyle(
+                                              color: const Color(0xFFEAF2FF)
+                                                  .o(0.55),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
                                 ],
                               ),
                             ),
 
                             const SizedBox(height: 16),
 
-                            // ✅ Vault Key card
+                            // Upgrade CTA card (like React)
                             _GlassCard(
                               padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Stack(
                                 children: [
-                                  const Text(
-                                    "Vault Key",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    "Keep this secret. Without it, recovery is impossible.",
-                                    style: TextStyle(
-                                      color: const Color(0xFFEAF2FF).o(0.55),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  if (_keyLoading)
-                                    Text(
-                                      "Loading key…",
-                                      style: TextStyle(
-                                        color: const Color(0xFFEAF2FF).o(0.55),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    )
-                                  else if (_keyB64 == null || _keyB64!.isEmpty)
-                                    Text(
-                                      "No key found. Run Key Setup.",
-                                      style: TextStyle(
-                                        color: const Color(0xFFF87171).o(0.95),
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    )
-                                  else
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
+                                  Positioned.fill(
+                                    child: DecoratedBox(
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(16),
-                                        color: Colors.white.o(0.05),
-                                        border: Border.all(
-                                          color: Colors.white.o(0.10),
-                                        ),
-                                      ),
-                                      child: SelectableText(
-                                        _revealKey
-                                            ? _keyB64!
-                                            : _maskKey(_keyB64!),
-                                        style: TextStyle(
-                                          color: Colors.white.o(0.90),
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 12,
-                                          height: 1.35,
+                                        borderRadius:
+                                            BorderRadius.circular(26),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            const Color(0xFF4DA3FF).o(0.10),
+                                            Colors.transparent,
+                                            const Color(0xFF0A2A4F).o(0.14),
+                                          ],
                                         ),
                                       ),
                                     ),
-                                  const SizedBox(height: 12),
-                                  if (_keyB64 != null && _keyB64!.isNotEmpty)
-                                    Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
-                                      children: [
-                                        OutlinedButton.icon(
-                                          onPressed: () => setState(
-                                            () => _revealKey = !_revealKey,
-                                          ),
-                                          icon: Icon(
-                                            _revealKey
-                                                ? Icons.visibility_off_rounded
-                                                : Icons.visibility_rounded,
-                                          ),
-                                          label: Text(
-                                            _revealKey ? "Hide" : "Reveal",
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.white,
-                                            side: BorderSide(
-                                              color: Colors.white.o(0.10),
-                                            ),
-                                            backgroundColor: Colors.white.o(
-                                              0.06,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                            ),
-                                          ),
-                                        ),
-                                        OutlinedButton.icon(
-                                          onPressed: () async {
-                                            await Clipboard.setData(
-                                              ClipboardData(text: _keyB64!),
-                                            );
-                                            _snack("Copied to clipboard");
-                                          },
-                                          icon: const Icon(Icons.copy_rounded),
-                                          label: const Text("Copy"),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.white,
-                                            side: BorderSide(
-                                              color: Colors.white.o(0.10),
-                                            ),
-                                            backgroundColor: Colors.white.o(
-                                              0.06,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            // ── Vault Stats ──────────────────────────────
-                            const Text(
-                              'Vault',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _GlassCard(
-                              padding: const EdgeInsets.all(16),
-                              child: _statsLoading
-                                  ? const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(8),
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    )
-                                  : Column(
-                                      children: [
-                                        _StatDetailRow(
-                                          icon: Icons.folder_copy_rounded,
-                                          label: 'Total files',
-                                          value: '${_vaultStats?.totalFiles ?? 0}',
-                                        ),
-                                        const SizedBox(height: 10),
-                                        _StatDetailRow(
-                                          icon: Icons.storage_rounded,
-                                          label: 'Total size',
-                                          value:
-                                              _vaultStats?.formattedSize ?? '0 B',
-                                        ),
-                                        const SizedBox(height: 10),
-                                        const _StatDetailRow(
-                                          icon: Icons.lock_rounded,
-                                          label: 'Encryption',
-                                          value: 'AES-256-GCM',
-                                        ),
-                                        const SizedBox(height: 10),
-                                        _StatDetailRow(
-                                          icon: Icons.workspace_premium_rounded,
-                                          label: 'Plan limit',
-                                          value: _billing.isPro
-                                              ? 'Unlimited'
-                                              : '10 files (Free)',
-                                        ),
-                                      ],
-                                    ),
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            // ── Security ─────────────────────────────────
-                            const Text(
-                              'Security',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _GlassCard(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  _StatDetailRow(
-                                    icon: Icons.login_rounded,
-                                    label: 'Last login',
-                                    value: _formatLastLogin(
-                                      FirebaseAuth.instance.currentUser
-                                          ?.metadata.lastSignInTime,
+                                  ),
+                                  Positioned(
+                                    top: -20,
+                                    right: -20,
+                                    child: _GlowBlob(
+                                      size: 180,
+                                      blur: 60,
+                                      color: const Color(0xFF4DA3FF).o(0.10),
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  _StatDetailRow(
-                                    icon: Icons.how_to_reg_rounded,
-                                    label: 'Sign-in method',
-                                    value: _signInProvider(),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _StatDetailRow(
-                                    icon: Icons.verified_user_rounded,
-                                    label: 'Email verified',
-                                    value: (FirebaseAuth
-                                                    .instance
-                                                    .currentUser
-                                                    ?.emailVerified ??
-                                                false)
-                                        ? 'Yes'
-                                        : 'No',
-                                    valueColor:
-                                        (FirebaseAuth.instance.currentUser
-                                                    ?.emailVerified ??
-                                                false)
-                                            ? const Color(0xFF22C55E)
-                                            : const Color(0xFFF59E0B),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _StatDetailRow(
-                                    icon: Icons.lock_person_rounded,
-                                    label: 'Biometric lock',
-                                    value:
-                                        (_settings?.lockEnabled ?? false)
-                                            ? 'Enabled'
-                                            : 'Disabled',
-                                    valueColor:
-                                        (_settings?.lockEnabled ?? false)
-                                            ? const Color(0xFF22C55E)
-                                            : null,
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            // ── Subscription ─────────────────────────────
-                            const Text(
-                              'Subscription',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _GlassCard(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          gradient: _billing.isPro
-                                              ? const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFFFFD700),
-                                                    Color(0xFFFFA500),
-                                                  ],
-                                                )
-                                              : null,
-                                          color: _billing.isPro
-                                              ? null
-                                              : Colors.white.o(0.08),
-                                          border: _billing.isPro
-                                              ? null
-                                              : Border.all(
-                                                  color: Colors.white.o(0.15),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF4DA3FF),
+                                                  Color(0xFF2B7FDB),
+                                                ],
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  blurRadius: 18,
+                                                  color: const Color(0xFF4DA3FF)
+                                                      .o(0.28),
                                                 ),
-                                        ),
-                                        child: Text(
-                                          _billing.isPro ? 'PRO' : 'FREE',
-                                          style: TextStyle(
-                                            color: _billing.isPro
-                                                ? Colors.black
-                                                : Colors.white.o(0.70),
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 12,
-                                            letterSpacing: 0.5,
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.auto_awesome_rounded,
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
                                           ),
-                                        ),
+                                          const SizedBox(width: 12),
+                                          const Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Upgrade to Pro',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        FontWeight.w900,
+                                                    fontSize: 17,
+                                                  ),
+                                                ),
+                                                SizedBox(height: 4),
+                                                Text(
+                                                  'Unlimited storage, stealth features, advanced protection & priority support.',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFEAF2FF),
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                    fontSize: 13,
+                                                    height: 1.35,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          _billing.isPro
-                                              ? 'SafeShell Pro — Active'
-                                              : 'Free Plan — Limited features',
-                                          style: TextStyle(
-                                            color: Colors.white.o(0.85),
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 14,
+                                      const SizedBox(height: 14),
+                                      _PrimaryButton(
+                                        text: 'View Pro Plans',
+                                        onTap: () =>
+                                            context.push('/subscription'),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Center(
+                                        child: TextButton(
+                                          onPressed: () =>
+                                              context.push('/subscription'),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                'Compare features',
+                                                style: TextStyle(
+                                                  color: const Color(0xFF4DA3FF)
+                                                      .o(0.95),
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Icon(
+                                                Icons.chevron_right_rounded,
+                                                size: 18,
+                                                color: const Color(0xFF4DA3FF)
+                                                    .o(0.95),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 14),
-                                  if (!_billing.isPro) ...[
-                                    _UpgradeButton(
-                                      products: _billing.products,
-                                      onPurchase: (p) async {
-                                        await _billing.purchase(p);
-                                        if (mounted) setState(() {});
-                                      },
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Center(
-                                      child: TextButton(
-                                        onPressed: () async {
-                                          await _billing.restorePurchases();
-                                          if (mounted) setState(() {});
-                                        },
-                                        child: Text(
-                                          'Restore purchases',
-                                          style: TextStyle(
-                                            color: Colors.white.o(0.50),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ] else
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: TextButton.icon(
-                                        onPressed: () => _showManageSubDialog(),
-                                        icon: const Icon(
-                                          Icons.subscriptions_rounded,
-                                          size: 16,
-                                        ),
-                                        label:
-                                            const Text('Manage subscription'),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor:
-                                              Colors.white.o(0.60),
-                                        ),
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),
 
                             const SizedBox(height: 18),
 
-                            // ── Account ───────────────────────────────────
+                            // Account section (like React list)
                             const Text(
                               'Account',
                               style: TextStyle(
@@ -960,63 +598,67 @@ class _ProfileScreenState extends State<ProfileScreen>
                             const SizedBox(height: 10),
                             _GlassCard(
                               padding: const EdgeInsets.all(8),
-                              child: Column(
-                                children: [
-                                  _ActionRow(
-                                    tone: _ActionTone.normal,
-                                    icon: Icons.edit_rounded,
-                                    title: 'Edit Display Name',
-                                    subtitle: FirebaseAuth.instance.currentUser
-                                            ?.displayName ??
-                                        'Not set',
-                                    onTap: _showEditNameDialog,
-                                  ),
-                                  if (_isEmailProvider()) ...[
-                                    const Divider(
-                                      color: Colors.white12,
-                                      height: 1,
-                                      indent: 16,
-                                      endIndent: 16,
-                                    ),
-                                    _ActionRow(
-                                      tone: _ActionTone.normal,
-                                      icon: Icons.lock_reset_rounded,
-                                      title: 'Change Password',
-                                      subtitle:
-                                          'Send a password reset email',
-                                      onTap: _sendPasswordReset,
-                                    ),
-                                  ],
-                                  const Divider(
-                                    color: Colors.white12,
-                                    height: 1,
-                                    indent: 16,
-                                    endIndent: 16,
-                                  ),
-                                  _ActionRow(
-                                    tone: _ActionTone.danger,
-                                    icon: Icons.logout_rounded,
-                                    title: 'Sign Out',
-                                    subtitle: 'Log out from this device',
-                                    onTap: _logout,
-                                  ),
-                                  const Divider(
-                                    color: Colors.white12,
-                                    height: 1,
-                                    indent: 16,
-                                    endIndent: 16,
-                                  ),
-                                  _ActionRow(
-                                    tone: _ActionTone.danger,
-                                    icon: Icons.delete_forever_rounded,
-                                    title: 'Delete Account',
-                                    subtitle:
-                                        'Permanently delete all data',
-                                    onTap: _showDeleteAccountDialog,
-                                  ),
-                                ],
+                              child: _ActionRow(
+                                tone: _ActionTone.danger,
+                                icon: Icons.logout_rounded,
+                                title: 'Sign Out',
+                                subtitle: 'Log out from this device',
+                                onTap: _logout,
                               ),
                             ),
+
+                            // optional: quick key copy (handy for your app)
+                            if ((_keyB64?.isNotEmpty ?? false)) ...[
+                              const SizedBox(height: 14),
+                              _GlassCard(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.o(0.05),
+                                        border: Border.all(
+                                          color: Colors.white.o(0.10),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.key_rounded,
+                                        color: Color(0xFF4DA3FF),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Copy Vault Key',
+                                        style: TextStyle(
+                                          color: Colors.white.o(0.90),
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () async {
+                                        await Clipboard.setData(
+                                          ClipboardData(text: _keyB64!),
+                                        );
+                                        _snack('Copied to clipboard');
+                                      },
+                                      child: Text(
+                                        'Copy',
+                                        style: TextStyle(
+                                          color: const Color(0xFF4DA3FF)
+                                              .o(0.95),
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -1026,6 +668,8 @@ class _ProfileScreenState extends State<ProfileScreen>
               },
             ),
           ),
+
+          // top blur bar like your other screens
           Positioned(
             top: 0,
             left: 0,
@@ -1045,81 +689,51 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 }
 
-/* -------------------- Header -------------------- */
+/* ============================ UI Helpers ============================ */
 
-class _Header extends StatelessWidget {
-  final VoidCallback onTapOrb;
-  const _Header({required this.onTapOrb});
+class _RadialBG extends StatelessWidget {
+  const _RadialBG();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Profile",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.3,
-                  height: 1.05,
-                ),
+    return Stack(
+      children: const [
+        // 20% 10% blue
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(-0.75, -0.85),
+                radius: 1.25,
+                colors: [Color(0x1A4DA3FF), Colors.transparent],
+                stops: [0.0, 0.55],
               ),
-              SizedBox(height: 6),
-              Text(
-                "Manage your account and security.",
-                style: TextStyle(
-                  color: Color(0xFFEAF2FF),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        InkWell(
-          onTap: onTapOrb,
-          borderRadius: BorderRadius.circular(999),
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF4DA3FF),
-                  ),
-                ),
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.o(0.10),
-                  ),
-                ),
-                Container(
-                  width: 26,
-                  height: 26,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF4DA3FF), Color(0xFF2B7FDB)],
-                    ),
-                  ),
-                ),
-                const Icon(Icons.lock_rounded, color: Colors.white, size: 16),
-              ],
+        // 90% 25% navy
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0.90, -0.55),
+                radius: 1.15,
+                colors: [Color(0x470A2A4F), Colors.transparent],
+                stops: [0.0, 0.55],
+              ),
+            ),
+          ),
+        ),
+        // 30% 95% blue
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(-0.25, 0.85),
+                radius: 1.25,
+                colors: [Color(0x124DA3FF), Colors.transparent],
+                stops: [0.0, 0.55],
+              ),
             ),
           ),
         ),
@@ -1128,7 +742,57 @@ class _Header extends StatelessWidget {
   }
 }
 
-/* -------------------- Small UI helpers -------------------- */
+class _SecurityOrb extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SecurityOrb({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF4DA3FF).o(0.20),
+              ),
+            ),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.o(0.05),
+                border: Border.all(color: Colors.white.o(0.10)),
+              ),
+            ),
+            Container(
+              width: 26,
+              height: 26,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF4DA3FF), Color(0xFF2B7FDB)],
+                ),
+              ),
+            ),
+            const Icon(Icons.lock_rounded, color: Colors.white, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
@@ -1282,7 +946,7 @@ class _Chip extends StatelessWidget {
   }
 }
 
-enum _ActionTone { danger, normal }
+enum _ActionTone { danger }
 
 class _ActionRow extends StatelessWidget {
   final IconData icon;
@@ -1326,9 +990,7 @@ class _ActionRow extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color: isDanger
-                    ? const Color(0xFFF87171)
-                    : const Color(0xFF4DA3FF),
+                color: isDanger ? const Color(0xFFF87171) : const Color(0xFF4DA3FF),
               ),
             ),
             const SizedBox(width: 12),
@@ -1358,11 +1020,49 @@ class _ActionRow extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: (isDanger ? const Color(0xFFF87171) : Colors.white).o(
-                0.35,
-              ),
+              color: (isDanger ? const Color(0xFFF87171) : Colors.white).o(0.35),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  const _PrimaryButton({required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4DA3FF), Color(0xFF2B7FDB)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 16,
+              color: const Color(0xFF4DA3FF).o(0.25),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+            ),
+          ),
         ),
       ),
     );
@@ -1449,159 +1149,10 @@ class _NoisePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// ✅ withOpacity deprecated warning avoid helper
+/// âœ… avoid deprecated withOpacity
 extension _ColorOpacity on Color {
   Color o(double opacity) {
     final a = (opacity.clamp(0.0, 1.0) * 255).round();
     return withAlpha(a);
-  }
-}
-
-// ── Stat Detail Row ──────────────────────────────────────────────────────────
-
-class _StatDetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _StatDetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.white.o(0.05),
-            border: Border.all(color: Colors.white.o(0.08)),
-          ),
-          child: Icon(icon, size: 16, color: const Color(0xFF4DA3FF)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: const Color(0xFFEAF2FF).o(0.55),
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor ?? Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 13,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Upgrade Button ────────────────────────────────────────────────────────────
-
-class _UpgradeButton extends StatelessWidget {
-  final List<dynamic> products;
-  final Future<void> Function(dynamic) onPurchase;
-
-  const _UpgradeButton({
-    required this.products,
-    required this.onPurchase,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (products.isEmpty) {
-      return GestureDetector(
-        onTap: () => context.push('/subscription'),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4DA3FF), Color(0xFF2B7FDB)],
-            ),
-          ),
-          child: const Center(
-            child: Text(
-              'Upgrade to Pro',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 15,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: products.map<Widget>((p) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: GestureDetector(
-            onTap: () => onPurchase(p),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4DA3FF), Color(0xFF2B7FDB)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 16,
-                    color: const Color(0xFF4DA3FF).o(0.25),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      p.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    p.price,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
   }
 }
