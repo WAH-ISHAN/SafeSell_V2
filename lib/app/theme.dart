@@ -8,7 +8,7 @@ class SafeShellTheme {
   static const Color bgSurface = Color(0xFF1A2230);
   static const Color accent = Color(0xFF4DA3FF);
   static const Color accentAlt = Color(0xFF8B5CF6);
-  static const Color accentPink = Color(0xFFFF4081);
+  static const Color accentPink = Color(0xFF4DA3FF);
   static const Color success = Color(0xFF34D399);
   static const Color warning = Color(0xFFFBBF24);
   static const Color error = Color(0xFFF87171);
