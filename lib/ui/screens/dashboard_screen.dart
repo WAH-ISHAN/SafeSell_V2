@@ -133,7 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: const Text("Keep Original"),
               ),
               TextButton(
-                style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                style: TextButton.styleFrom(foregroundColor: const Color.fromARGB(255, 24, 34, 119)),
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text("Delete Original"),
               ),
@@ -161,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error picking files: $e"),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color.fromARGB(255, 34, 56, 156),
         ),
       );
     }
